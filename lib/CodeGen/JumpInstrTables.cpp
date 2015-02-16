@@ -56,8 +56,6 @@ ModulePass *llvm::createJumpInstrTablesPass(JumpTable::JumpTableType JTT) {
 }
 
 namespace {
-static const char jump_func_prefix[] = "__llvm_jump_instr_table_";
-static const char jump_section_prefix[] = ".jump.instr.table.text.";
 
 // Checks to see if a given CallSite is making an indirect call, including
 // cases where the indirect call is made through a bitcast.
@@ -143,6 +141,9 @@ void replaceValueWithFunction(GlobalValue *GV, Function *F) {
   return;
 }
 } // end anonymous namespace
+
+const char JumpInstrTables::jump_func_prefix[] = "__llvm_jump_instr_table_";
+const char JumpInstrTables::jump_section_prefix[] = ".jump.instr.table.text.";
 
 JumpInstrTables::JumpInstrTables()
     : ModulePass(ID), Metadata(), JITI(nullptr), TableCount(0),

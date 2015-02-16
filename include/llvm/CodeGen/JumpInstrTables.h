@@ -50,7 +50,8 @@ class Module;
 class JumpInstrTables : public ModulePass {
 public:
   static char ID;
-
+  static const char jump_func_prefix[];
+  static const char jump_section_prefix[];
   JumpInstrTables();
   JumpInstrTables(JumpTable::JumpTableType JTT);
   virtual ~JumpInstrTables();

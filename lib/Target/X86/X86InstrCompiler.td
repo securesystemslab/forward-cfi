@@ -36,6 +36,10 @@ let hasSideEffects = 0, isNotDuplicable = 1, Uses = [ESP] in
   def MOVPC32r : Ii32<0xE8, Pseudo, (outs GR32:$reg), (ins i32imm:$label),
                       "", []>;
 
+//Dummy instruction to trick LiveRange of Regs
+let hasSideEffects = 0, isNotDuplicable = 1, Uses = [ESP] in
+  def DUMMYFCFI : Ii32<0xE8, Pseudo, (outs GR32:$reg1), (ins i32imm:$label),
+                      "", []>;
 
 // ADJCALLSTACKDOWN/UP implicitly use/def ESP because they may be expanded into
 // a stack adjustment and the codegen must know that they may modify the stack
@@ -1260,6 +1264,10 @@ def ADD32ri_DB  : I<0, Pseudo, (outs GR32:$dst), (ins GR32:$src1, i32imm:$src2),
                     "", // orl/addl REG, imm
                     [(set GR32:$dst, (or_is_add GR32:$src1, imm:$src2))]>;
 
+// Reload IP instruction (for X86 32bit)
+def RELOADIP  : I<0, Pseudo, (outs GR32:$dst), (ins GR32:$src1, i32imm:$src2),
+                    "", // orl/addl REG, imm
+                    [(set GR32:$dst, (or_is_add GR32:$src1, imm:$src2))]>;
 
 def ADD64ri8_DB : I<0, Pseudo,
                     (outs GR64:$dst), (ins GR64:$src1, i64i8imm:$src2),

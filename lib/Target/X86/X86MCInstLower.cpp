@@ -1026,6 +1026,42 @@ void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
   case X86::TLS_base_addr64:
     return LowerTlsAddr(MCInstLowering, *MI);
 
+  case X86::DUMMYFCFI:
+    //Dummy instruction to trick LiveRange of Regs
+    return;
+    
+  case X86::RELOADIP: 
+    {
+        MCSymbol *PICBase = OutContext.CreateTempSymbol();
+
+        EmitAndCountInstruction(MCInstBuilder(X86::CALLpcrel32)
+                .addExpr(MCSymbolRefExpr::Create(PICBase, OutContext)));
+        OutStreamer.EmitLabel(PICBase);
+
+        EmitAndCountInstruction(MCInstBuilder(X86::POP32r)
+                .addReg(MI->getOperand(1).getReg()));
+
+        MCSymbol *DotSym = OutContext.CreateTempSymbol();
+        OutStreamer.EmitLabel(DotSym);
+
+        // Now that we have emitted the label, lower the complex operand expression.
+        MCSymbol *OpSym = MCInstLowering.GetSymbolFromOperand(MI->getOperand(2));
+
+        const MCExpr *DotExpr = MCSymbolRefExpr::Create(DotSym, OutContext);
+        const MCExpr *PICBaseExpr =
+                MCSymbolRefExpr::Create(PICBase, OutContext);
+        DotExpr = MCBinaryExpr::CreateSub(DotExpr, PICBaseExpr, OutContext);
+
+        DotExpr = MCBinaryExpr::CreateAdd(MCSymbolRefExpr::Create(OpSym, OutContext),
+                DotExpr, OutContext);
+
+        EmitAndCountInstruction(MCInstBuilder(X86::ADD32ri)
+                .addReg(MI->getOperand(0).getReg())
+                .addReg(MI->getOperand(1).getReg())
+                .addExpr(DotExpr));
+        return;
+    }
+   
   case X86::MOVPC32r: {
     // This is a pseudo op for a two instruction sequence with a label, which
     // looks like:

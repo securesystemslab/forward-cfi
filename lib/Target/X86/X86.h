@@ -67,6 +67,9 @@ FunctionPass *createX86PadShortFunctions();
 /// to eliminate execution delays in some Atom processors.
 FunctionPass *createX86FixupLEAs();
 
+// Reload IPs
+FunctionPass *createX86ReloadIPs();
+
 } // End llvm namespace
 
 #endif

@@ -31,6 +31,7 @@ set(sources
   X86TargetTransformInfo.cpp
   X86VZeroUpper.cpp
   X86FixupLEAs.cpp
+  X86ReloadIP.cpp
   )
 
 if( CMAKE_CL_64 )

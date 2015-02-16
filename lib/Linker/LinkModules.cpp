@@ -1035,6 +1035,14 @@ bool ModuleLinker::linkGlobalValueProto(GlobalValue *SGV) {
   if (NewGV != DGV)
     copyGVAttributes(NewGV, SGV);
 
+  // Don't unset unnamed_addr on values with a jumptable attribute, since that
+  // leads to an invalid module.
+  if (NewGV->hasUnnamedAddr())
+    HasUnnamedAddr = true;
+  if (Function *NewGVF = dyn_cast<Function>(NewGV))
+    if (NewGVF->hasFnAttribute(Attribute::JumpTable))
+      HasUnnamedAddr = true;
+    
   NewGV->setUnnamedAddr(HasUnnamedAddr);
   NewGV->setVisibility(Visibility);
 

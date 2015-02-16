@@ -179,6 +179,9 @@ bool X86PassConfig::addInstSelector() {
     addPass(createCleanupLocalDynamicTLSPass());
 
   addPass(createX86GlobalBaseRegPass());
+  if(getX86TargetMachine().Options.FCFI && 
+          getX86TargetMachine().getSubtarget<X86Subtarget>().isPICStyleGOT())
+    addPass(createX86ReloadIPs());
 
   return false;
 }

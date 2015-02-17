@@ -89,7 +89,7 @@ ReloadIPPass::addReloadIPInstr(MachineFunction::iterator &MFI,
                     
                     return MI;
                 } else
-                    MI->getParent()->dump(); // For debugging
+                    DEBUG(MI->getParent()->dump()); // For debugging
             }
             break;
             // Start adding reload ip instruction after the first call **experimental**

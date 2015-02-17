@@ -33,34 +33,34 @@ using namespace llvm;
 #define DEBUG_TYPE "x86-reload-IPs"
 
 namespace {
-
+    
     class ReloadIPPass : public MachineFunctionPass {
-
+        
         enum RegUsageState {
             RU_NotUsed, RU_Write, RU_Read
         };
         static char ID;
-
+        
         /// \brief Loop over all of the basic blocks,
         /// adding reload IP instructions.
         void processBasicBlock(MachineFunction &MF, MachineFunction::iterator MFI);
-
+        
         const char *getPassName() const override {
             return "X86 Reload IP";
         }
-
+        
         MachineInstr *addReloadIPInstr(MachineFunction::iterator &MFI,
-                MachineBasicBlock::iterator &MBBI) const;
-
+                                       MachineBasicBlock::iterator &MBBI) const;
+        
     public:
-
+        
         ReloadIPPass() : MachineFunctionPass(ID) {
         }
-
+        
         /// \brief Loop over all of the basic blocks,
         /// adding reload IP instructions.
         bool runOnMachineFunction(MachineFunction &MF) override;
-
+        
     private:
         MachineFunction *MF;
         const TargetMachine *TM;
@@ -71,31 +71,36 @@ namespace {
 
 MachineInstr *
 ReloadIPPass::addReloadIPInstr(MachineFunction::iterator &MFI,
-        MachineBasicBlock::iterator &MBBI) const {
+                               MachineBasicBlock::iterator &MBBI) const {
     MachineInstr *MI = MBBI;
     StringRef JTPrefix(JumpInstrTables::jump_func_prefix);
     switch (MI->getOpcode()) {
         case X86::MOV32rm:
             if (MI->getNumOperands() > 4 && MI->getOperand(4).isGlobal() &&
-                    MI->getOperand(4).getGlobal()->getName().startswith(JTPrefix)) {
-            // MI->dump(); // For debugging
-            DEBUG(dbgs() << TM->getSubtargetImpl()->getInstrInfo()->getName(MI->getOpcode()) << ": "
-                        << " Op" << ": "
-                        << MI->getOperand(4).getGlobal()->getName().str() << "\n";);
-
-                return MI;
+                MI->getOperand(4).getGlobal()->getName().startswith(JTPrefix)) {
+                if ((TM->Options.CFIType == CFIntegrity::Add && MI->getNextNode()->getOpcode() == X86::AND32rr)
+                    || (TM->Options.CFIType == CFIntegrity::Sub && MI->getNextNode()->getOpcode() == X86::SUB32rr)
+                    || (TM->Options.CFIType == CFIntegrity::Ror && MI->getNextNode()->getOpcode() == X86::SUB32rr)
+                    ) {
+                    //                    MI->dump(); // For debugging
+                    DEBUG(dbgs() << TM->getSubtargetImpl()->getInstrInfo()->getName(MI->getOpcode()) << ": "
+                          << " Op" << ": "
+                          << MI->getOperand(4).getGlobal()->getName().str() << "\n";);
+                    
+                    return MI;
+                } else
+                    MI->getParent()->dump(); // For debugging
             }
             break;
-
-        // Start adding reload ip instruction after the first call **experimental**
-        //    case X86::CALL32m:
-        //    case X86::CALL32r:
-        //    case X86::CALLpcrel32:
-        // TODO: add boolean variable to trigger the first call
-        //      break;
-
+            // Start adding reload ip instruction after the first call **experimental**
+            //    case X86::CALL32m:
+            //    case X86::CALL32r:
+            //    case X86::CALLpcrel32:
+            // TODO: add boolean variable to trigger the first call
+            //      break;
+            
     }
-
+    
     return nullptr;
 }
 
@@ -107,29 +112,29 @@ bool ReloadIPPass::runOnMachineFunction(MachineFunction &Func) {
     MF = &Func;
     TM = &Func.getTarget();
     TII = static_cast<const X86InstrInfo *> (TM->getSubtargetImpl()->getInstrInfo());
-
-    DEBUG(dbgs() << "Processing Function: " << Func.getName().str() 
-            << "  Func#" << Func.getFunctionNumber() << "\n";);
-
+    
+    DEBUG(dbgs() << "Processing Function: " << Func.getName().str()
+          << "  Func#" << Func.getFunctionNumber() << "\n";);
+    
     //skip __cxx_global_var_init function **experimental**
-    //  if(Func.getFunctionNumber() == 0) 
+    //  if(Func.getFunctionNumber() == 0)
     //      return true;
-    DEBUG(dbgs() << "Start X86ReloadIPs for " << Func.getName().str() 
-            << "  Func#" << Func.getFunctionNumber() << "\n";);
-            
+    DEBUG(dbgs() << "Start X86ReloadIPs for " << Func.getName().str()
+          << "  Func#" << Func.getFunctionNumber() << "\n";);
+    
     // Process all basic blocks.
     for (MachineFunction::iterator I = Func.begin(), E = Func.end(); I != E; ++I)
         processBasicBlock(Func, I);
-            
-    DEBUG(dbgs() << "End X86ReloadIPs for " << Func.getName().str() 
-            << "  Func#" << Func.getFunctionNumber() << "\n";);
-
+    
+    DEBUG(dbgs() << "End X86ReloadIPs for " << Func.getName().str()
+          << "  Func#" << Func.getFunctionNumber() << "\n";);
+    
     return true;
 }
 
 void ReloadIPPass::processBasicBlock(MachineFunction &MF,
-        MachineFunction::iterator MFI) {
-
+                                     MachineFunction::iterator MFI) {
+    
     SmallVector<MachineInstr*, 4> fcfiChecks;
     for (MachineBasicBlock::iterator I = MFI->begin(); I != MFI->end(); ++I) {
         MachineInstr *fcfiProcess = addReloadIPInstr(MFI, I);
@@ -140,19 +145,18 @@ void ReloadIPPass::processBasicBlock(MachineFunction &MF,
     for (MachineInstr* &MI : fcfiChecks) {
         unsigned VReg = MF.getRegInfo().createVirtualRegister(&X86::GR32_NOSPRegClass);
         unsigned VReg2 = MF.getRegInfo().createVirtualRegister(&X86::GR32_NOSPRegClass);
-
+        
         //Dummy instruction to trick LiveRange of Regs
         BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(X86::DUMMYFCFI), VReg);
-
+        
         //Add machine instructions
         BuildMI(*(MI->getParent()), MI, MI->getDebugLoc(), TII->get(X86::RELOADIP), VReg2)
-                .addReg(VReg).addExternalSymbol("_GLOBAL_OFFSET_TABLE_",
-                X86II::MO_GOT_ABSOLUTE_ADDRESS);
-
-
+        .addReg(VReg).addExternalSymbol("_GLOBAL_OFFSET_TABLE_",
+                                        X86II::MO_GOT_ABSOLUTE_ADDRESS);
+        
+        
         //Update jump instruction table to use just produced IP reg
         MI->getOperand(1).setReg(VReg2);
     }
 }
-
 

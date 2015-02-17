@@ -88,8 +88,9 @@ ReloadIPPass::addReloadIPInstr(MachineFunction::iterator &MFI,
                           << MI->getOperand(4).getGlobal()->getName().str() << "\n";);
                     
                     return MI;
-                } else
-                    MI->getParent()->dump(); // For debugging
+                } 
+                //else
+                //    MI->dump(); // For debugging
             }
             break;
             // Start adding reload ip instruction after the first call **experimental**

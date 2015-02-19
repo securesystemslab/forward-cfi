@@ -955,8 +955,8 @@ void Verifier::VerifyFunctionAttrs(FunctionType *FT, AttributeSet Attrs,
   if (Attrs.hasAttribute(AttributeSet::FunctionIndex,
                          Attribute::JumpTable)) {
     const GlobalValue *GV = cast<GlobalValue>(V);
-    Assert1(GV->hasUnnamedAddr(),
-            "Attribute 'jumptable' requires 'unnamed_addr'", V);
+//     Assert1(GV->hasUnnamedAddr(),
+//             "Attribute 'jumptable' requires 'unnamed_addr'", V);
 
   }
 }
